@@ -1,5 +1,6 @@
 package uk.ac.ebi.uniprot.dataservice.client.examples;
 
+import jdk.incubator.vector.*;
 import uk.ac.ebi.uniprot.dataservice.client.Client;
 import uk.ac.ebi.uniprot.dataservice.client.ServiceFactory;
 import uk.ac.ebi.uniprot.dataservice.client.exception.ServiceException;
@@ -9,6 +10,8 @@ import java.util.Arrays;
 
 public class SmithWatermanStripedLayout {
 
+    static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_256;
+
     public static void main(String[] args) throws ServiceException {
 
         //Extracting sequences + initializing target and query sequences and their lengths
@@ -16,37 +19,68 @@ public class SmithWatermanStripedLayout {
         UniProtService uniProtService = serviceFactoryInstance.getUniProtQueryService();
 
         String targetProteinName = "P10415";
-        String targetSequence = uniProtService.getEntry(targetProteinName).getSequence().getValue();
-        int targetSeqLen = targetSequence.length();
+        String D = uniProtService.getEntry(targetProteinName).getSequence().getValue();
+        int lenD = D.length();
         String querySequenceName = "P49950";
-        StringBuilder querySequence = new StringBuilder(uniProtService.getEntry(querySequenceName).getSequence().getValue());
-        int querySeqLen = querySequence.length();
+        String Q = uniProtService.getEntry(querySequenceName).getSequence().getValue();
+        int lenQ = Q.length();
 
-        int lanePerRegister = 4; //number of simd registers. r
+        int segN = IntVector.SPECIES_256.length();
+        System.out.println(segN);
 
-        int stripLength= (querySeqLen+lanePerRegister - 1) / lanePerRegister;
-        int paddedLength = lanePerRegister * stripLength;
-        if ( querySeqLen > paddedLength ) {
-            querySequence.append(" ".repeat(querySeqLen - paddedLength));
-        }
+        int segLen = (lenQ+segN - 1) / segN;
 
-        int matchScore = 20;
-        int mismatchScore = 10;
-        int gapOpeningPenalty = 10;
-        int gapExtensionPenalty = 3;
-
-        //initialize M profile
-        int[][] substitutionScore = new int[targetSeqLen][querySeqLen];
-        for ( int i = 0; i < targetSeqLen; i++ ) {
-            for ( int j = 0; j < querySeqLen; j++ ) {
-                if ( targetSequence.charAt(i) == querySequence.charAt(j) ) {
-                    substitutionScore[i][j] = matchScore;
-                }
-                else {
-                    substitutionScore[i][j] = mismatchScore;
-                }
+        int paddedLen = segN * segLen;
+        if ( lenQ > paddedLen ) {
+            for ( int i = 0; i < lenQ-paddedLen; i++ ) {
+                Q += " ";
             }
         }
+
+        float matchScore = 20.0f;
+        float unmatchScore = -10.0f;
+        float gapOpeningPenalty = -10.0f;
+        float gapExtensionPenalty = -3.0f;
+
+        float[] vMatch_ = new float[segN];
+        Arrays.fill(vMatch_, matchScore);
+        float[] vUnmatch_ = new float[segN];
+        Arrays.fill(vUnmatch_, unmatchScore);
+        float[] vGapOpen_ = new float[segN];
+        Arrays.fill(vUnmatch_, gapOpeningPenalty);
+        float[] vGapExtend_ = new float[segN];
+        Arrays.fill(vGapExtend_, gapExtensionPenalty);
+
+        FloatVector vGapOpen = FloatVector.fromArray(SPECIES, vGapOpen_, 0);
+        FloatVector vGapExtend = FloatVector.fromArray(SPECIES, vGapExtend_, 0);
+        FloatVector vMatch = FloatVector.fromArray(SPECIES, vMatch_, 0);
+        FloatVector vUnmatch = FloatVector.fromArray(SPECIES, vUnmatch_, 0);
+
+        VectorSpecies<Float> target = FloatVector.SPECIES_PREFERRED;
+        VectorSpecies<Float> query = FloatVector.SPECIES_PREFERRED;
+
+
+        float[][] profile = new float[lenD+1][lenQ+1];
+        char[] charArrayQ = Q.toCharArray();
+        float[] floatArrayQ = new float[charArrayQ.length];
+        for ( int i = 0; i < charArrayQ.length; i++ ) {
+            floatArrayQ[i] = (float) charArrayQ[i];
+        }
+
+        for ( int i = 0; i < lenD; i++ ) {
+            int residueD = D.charAt(i);
+            FloatVector vResidueD = FloatVector.broadcast(target, residueD);
+            for ( int j = 0; j < lenQ; j+=segLen ) {
+                FloatVector vResidueQ = FloatVector.fromArray(query, floatArrayQ, j);
+                VectorMask<Float> residueComparisonMask = vResidueD.compare(VectorOperators.EQ, vResidueQ);
+                VectorMask<Float> paddingMask = vResidueQ.compare(VectorOperators.EQ, 0);
+                FloatVector profileVector = vMatch.blend(vUnmatch, residueComparisonMask);
+
+            }
+
+        }
+        //FloatVector[][] vProfile = FloatVector.fromArray(SPECIES, profile,0);
+
 
         /*
         E --> for insertion; from left.
@@ -54,28 +88,10 @@ public class SmithWatermanStripedLayout {
         H --> for match/mismatch; upper-left diagonal
          */
 
-        int[] vF = new int[stripLength];
-        int[] vH = new int[stripLength];
-        int[][] H = new int[targetSeqLen][querySeqLen];
-        int Hi = 0;
-        for ( int j = 1; j <= targetSeqLen; j++ ) {
-            vF = new int[stripLength];
-
-            if ( Hi > querySeqLen ) {
-                Hi = -1;
-            }
-            else {
-                Hi += lanePerRegister;
-            }
-
-            vH = Arrays.copyOfRange(H[j], Hi, Hi+lanePerRegister);
+        for ( int i = 0; i < lenD; i++ ) {
+            IntVector[] vF = new IntVector[segN];
 
 
         }
     }
-
-    /*public static int[] leftShift(int[][] matrix, int[] vector, int i) {
-
-    }*/
-
 }

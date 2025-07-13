@@ -1,27 +1,42 @@
-package uk.ac.ebi.uniprot.dataservice.client.examples;
+package uk.ac.ebi.uniprot.dataservice.client.examples;//package uk.ac.ebi.uniprot.dataservice.client.examples;
+
+import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.Vector;
+import jdk.incubator.vector.IntVector;
+import jdk.incubator.vector.VectorSpecies;
+
+//in Terminal, type: java --add-modules jdk.incubator.vector test.java
+
+import java.util.Arrays;
 
 public class test {
 
+    static final VectorSpecies<Integer> SPECIES = IntVector.SPECIES_256;
+    static final VectorSpecies<Float> SPECIES2 = FloatVector.SPECIES_64;
+
     public static void main(String[] args) {
-        int[][] arr = new int[20][20];
-        int k = 0;
-        for ( int i = 0; i < 5; i++ ) {
-            for ( int j = 0; j < 5; j++ ) {
-                arr[i][j]=k;
-                k++;
-            }
-        }
 
-        int j = -1;
-        for ( int i = 0; i < 5; i++ ) {
-            if ( j > 5 ) {
-                j = 0;
-            }
-            else {
-                j +=
-            }
+        int[] a = new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        int[] b = new int[] {10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+        int[] c = new int[a.length];
+
+        for( int i = 0; i < a.length; i+=SPECIES.length() ) {
+            var mask = SPECIES.indexInRange(i, a.length);
+            var va = IntVector.fromArray(SPECIES, a, i, mask);
+            var vb = IntVector.fromArray(SPECIES, b, i, mask);
+            var vc = va.add(vb, mask);
+            vc.intoArray(c, i, mask);
+
         }
 
 
+
+        System.out.println(SPECIES.length());
+        System.out.println(Integer.SIZE * SPECIES.length());
+        System.out.println(Arrays.toString(c));
+
+        String s = "hello world";
+        int n = 'h';
+        System.out.println(s.charAt(0) == n);
     }
 }
