@@ -78,7 +78,7 @@ public class SmithWatermanOriginal {
         int j = maxIndexJ;
         String targetMaxRegionReversed = "";
         String queryMaxRegionReversed = "";
-        
+
         while ( path[i][j] != 0 ) {
             if ( path[i][j] == 1 ) {
                 targetMaxRegionReversed += targetSequence.charAt(i-1);
