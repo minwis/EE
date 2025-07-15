@@ -26,12 +26,11 @@ public class SmithWatermanStripedLayout {
         int lenQ = Q.length();
 
         int segN = IntVector.SPECIES_256.length();
-        System.out.println(segN);
 
         int segLen = (lenQ+segN - 1) / segN;
 
         int paddedLen = segN * segLen;
-        if ( lenQ > paddedLen ) {
+        if ( lenQ >= paddedLen ) {
             for ( int i = 0; i < lenQ-paddedLen; i++ ) {
                 Q += " ";
             }
@@ -67,31 +66,40 @@ public class SmithWatermanStripedLayout {
             floatArrayQ[i] = (float) charArrayQ[i];
         }
 
-        for ( int i = 0; i < lenD; i++ ) {
+        for ( int i = 1; i < lenD; i++ ) {
             int residueD = D.charAt(i);
             FloatVector vResidueD = FloatVector.broadcast(target, residueD);
-            for ( int j = 0; j < lenQ; j+=segLen ) {
+
+            for ( int j = 1; j < lenQ; j+=segLen ) {
                 FloatVector vResidueQ = FloatVector.fromArray(query, floatArrayQ, j);
                 VectorMask<Float> residueComparisonMask = vResidueD.compare(VectorOperators.EQ, vResidueQ);
-                VectorMask<Float> paddingMask = vResidueQ.compare(VectorOperators.EQ, 0);
-                FloatVector profileVector = vMatch.blend(vUnmatch, residueComparisonMask);
-
+                FloatVector profileVector = vUnmatch.blend(vMatch, residueComparisonMask); //when residueComparisonMask is true --> vMatch.
+                float[] profileVectorArr = profileVector.toArray();
+                for( int k = 0; k < segN; k++ ) {
+                    profile[i][k+j] = profileVectorArr[k];
+                }
             }
 
         }
-        //FloatVector[][] vProfile = FloatVector.fromArray(SPECIES, profile,0);
-
 
         /*
         E --> for insertion; from left.
         F --> for deletion; from above
         H --> for match/mismatch; upper-left diagonal
+        The query is divded into equal length segments, S.
+
+THe number of segments, p, = N of elements being processed
+
+8 bit values --> p = 16
+
+length of each segment t = (|Q|+p)-1
+
          */
 
         for ( int i = 0; i < lenD; i++ ) {
             IntVector[] vF = new IntVector[segN];
 
-
+            
         }
     }
 }
