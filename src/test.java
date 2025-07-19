@@ -1,9 +1,6 @@
 package uk.ac.ebi.uniprot.dataservice.client.examples;//package uk.ac.ebi.uniprot.dataservice.client.examples;
 
-import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.Vector;
-import jdk.incubator.vector.IntVector;
-import jdk.incubator.vector.VectorSpecies;
+import jdk.incubator.vector.*;
 
 //in Terminal, type: java --add-modules jdk.incubator.vector test.java
 
@@ -29,14 +26,15 @@ public class test {
 
         }
 
+        IntVector vc = IntVector.fromArray(SPECIES, c, 0);
 
+        System.out.println(vc);
+        System.out.println(vc.lanewise(VectorOperators.LSHL, 2));
 
-        System.out.println(SPECIES.length());
-        System.out.println(Integer.SIZE * SPECIES.length());
-        System.out.println(Arrays.toString(c));
 
         String s = "hello world";
         int n = 'h';
         System.out.println(s.charAt(0) == n);
     }
+
 }

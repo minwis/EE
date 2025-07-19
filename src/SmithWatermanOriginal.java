@@ -9,6 +9,9 @@ import uk.ac.ebi.uniprot.dataservice.client.uniprot.UniProtService;
 
 public class SmithWatermanOriginal {
     public static void main(String[] args) throws ServiceException {
+
+        long startTime = System.currentTimeMillis();
+
         ServiceFactory serviceFactoryInstance = Client.getServiceFactoryInstance();
         UniProtService uniProtService = serviceFactoryInstance.getUniProtQueryService();
 
@@ -114,6 +117,9 @@ public class SmithWatermanOriginal {
                 + "\n"
                 + "Maximum Score: " + recordMax);
 
+        long endTime = System.currentTimeMillis();
+        long elapsedTime = endTime - startTime;
+        System.out.println("Elapsed time: " + elapsedTime + " milliseconds");
     }
 
 }
