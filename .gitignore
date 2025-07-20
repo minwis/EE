@@ -17,7 +17,6 @@ src/UniProtSearchExamples.java
 .mtj.tmp/
 
 # Package Files #
-*.jar
 *.war
 *.nar
 *.ear
