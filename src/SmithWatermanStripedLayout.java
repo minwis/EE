@@ -15,19 +15,8 @@ public class SmithWatermanStripedLayout {
 
     static int segN;
 
-    public static void main(String[] args) throws ServiceException {
-
+    public static long StripedLayout( String D, int lenD, String Q, int lenQ ) {
         long startTime = System.currentTimeMillis();
-
-        ServiceFactory serviceFactoryInstance = Client.getServiceFactoryInstance();
-        UniProtService uniProtService = serviceFactoryInstance.getUniProtQueryService();
-
-        String targetProteinName = "P10415";
-        String D = uniProtService.getEntry(targetProteinName).getSequence().getValue();
-        int lenD = D.length();
-        String querySequenceName = "P49950";
-        String Q = uniProtService.getEntry(querySequenceName).getSequence().getValue();
-        int lenQ = Q.length();
 
         segN = (int) Math.ceil((double) (lenQ + segLen - 1) / segLen);
 
@@ -56,21 +45,21 @@ public class SmithWatermanStripedLayout {
         FloatVector vMatch = FloatVector.fromArray(SPECIES, vMatch_, 0);
         FloatVector vUnmatch = FloatVector.fromArray(SPECIES, vUnmatch_, 0);
 
-        float[][] tempProfile = new float[lenD][lenQ];
         char[] charArrayQ = Q.toCharArray();
         float[] floatArrayQ = new float[charArrayQ.length];
         for ( int i = 0; i < charArrayQ.length; i++ ) {
             floatArrayQ[i] = (float) charArrayQ[i];
         }
 
+        float[][] tempProfile = new float[lenD+1][lenQ+1];
         //initializing match/mismatch profile
-        for ( int i = 0; i < lenD; i++ ) {
+        for ( int i = 1; i < lenD; i++ ) {
             int residueD = D.charAt(i);
             FloatVector vResidueD = FloatVector.broadcast(SPECIES, residueD);
 
-            for ( int j = 0; j < lenQ; j+=segLen ) { //
-                VectorMask<Float> mask = SPECIES.indexInRange(j, j+segLen);
-                FloatVector vResidueQ = FloatVector.fromArray(SPECIES, floatArrayQ, j, mask);
+            for ( int j = 1; j < lenQ; j+=segLen ) { //
+                VectorMask<Float> mask = SPECIES.indexInRange(j, j-1+segLen);
+                FloatVector vResidueQ = FloatVector.fromArray(SPECIES, floatArrayQ, j-1, mask);
                 VectorMask<Float> residueComparisonMask = vResidueD.compare(VectorOperators.EQ, vResidueQ);
                 FloatVector profileVector = vUnmatch.blend(vMatch, residueComparisonMask);
                 float[] profileVectorArr = profileVector.toArray();
@@ -89,23 +78,12 @@ public class SmithWatermanStripedLayout {
 
         }
 
-        /*
-        E --> for insertion; from left.
-        F --> for deletion; from above
-        H --> for match/mismatch; upper-left diagonal
-        The query is divided into equal length segments, S.
-         */
-
-        //System.out.println("No error so far");
-
-        //Row: target sequence. Column: query sequence. H[row][column]
-        //TODO: Outer loop and Inner loop, Lazy-F loop
         float[] allZeroes = new float[segN];
 
         FloatVector[] vHStore = new FloatVector[segN];
         FloatVector[] vHLoad = new FloatVector[segN];
         FloatVector[] vE = new FloatVector[segN];
-        for ( int i = 0; i < segLen; i++ ) {
+        for ( int i = 0; i < segN; i++ ) {
             vHStore[i] = FloatVector.fromArray(SPECIES, allZeroes,0);
             vHLoad[i] = FloatVector.fromArray(SPECIES, allZeroes,0);
             vE[i] = FloatVector.fromArray(SPECIES, allZeroes,0);
@@ -128,8 +106,10 @@ public class SmithWatermanStripedLayout {
 
 
             for (int j = 0; j < segN; j++) {
-                vH = vH.add(profile[i][j]);                    // Add score from scoring profile
+
+                vH = vH.add(profile[i][j]);               // Add score from scoring profile
                 vMax = vH.max(vMax);                      // Track global max
+
                 vH = vH.max(vE[j]);                        // Compare with E
                 vH = vH.max(vF);                           // Compare with F
                 vHStore[j] = vH;                           // Store updated H
@@ -157,20 +137,19 @@ public class SmithWatermanStripedLayout {
                     j = 0;
                 }
             }
-
-            long endTime = System.currentTimeMillis();
-            long elapsedTime = endTime - startTime;
-            System.out.println("Elapsed time: " + elapsedTime + " milliseconds");
         }
+        long endTime = System.currentTimeMillis();
+        System.out.println(endTime-startTime);
+        return (long) endTime - startTime;
     }
 
+
     public static FloatVector[] leftShift(FloatVector[] v1) {
-        //turn v1 to one-dimensional array
         int laneCount = SPECIES.length();
         int totalLen = v1.length * laneCount;
 
         float[] flat = new float[totalLen];
-        for (int i = 0; i < v1.length; i++) {
+        for (int i = 0; i * laneCount < v1.length; i++) {
             v1[i].intoArray(flat, i * laneCount);
         }
 
@@ -186,7 +165,6 @@ public class SmithWatermanStripedLayout {
     }
 
     public static FloatVector leftShift(FloatVector v1) {
-        //turn v1 to one-dimensional array
         float[] flat = new float[v1.length()];
         v1.intoArray(flat, 0);
 

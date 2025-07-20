@@ -7,20 +7,11 @@ import uk.ac.ebi.uniprot.dataservice.client.uniprot.UniProtService;
 
 //CREDIT: https://github.com/JayakrishnaThota/Sequence-Alignment/blob/master/SmithWaterman.java
 
+
 public class SmithWatermanOriginal {
-    public static void main(String[] args) throws ServiceException {
 
+    public static long Original(String targetSequence, int targetSeqLen, String querySequence, int querySeqLen) {
         long startTime = System.currentTimeMillis();
-
-        ServiceFactory serviceFactoryInstance = Client.getServiceFactoryInstance();
-        UniProtService uniProtService = serviceFactoryInstance.getUniProtQueryService();
-
-        String targetProteinName = "P10415";
-        String targetSequence = uniProtService.getEntry(targetProteinName).getSequence().getValue();
-        int targetSeqLen = targetSequence.length();
-        String querySequenceName = "P49950";
-        String querySequence = uniProtService.getEntry(querySequenceName).getSequence().getValue();
-        int querySeqLen = querySequence.length();
 
         int[][] H = new int[targetSeqLen+1][querySeqLen+1];
         int[][] E = new int[targetSeqLen+1][querySeqLen+1];
@@ -59,8 +50,8 @@ public class SmithWatermanOriginal {
                 }
 
                 if ( currentMax > recordMax ) {
-                    maxIndexI = i;
-                    maxIndexJ = j;
+                    //maxIndexI = i;
+                    //maxIndexJ = j;
                     recordMax = currentMax;
                 }
 
@@ -76,7 +67,7 @@ public class SmithWatermanOriginal {
 
             }
         }
-
+        /*
         int i = maxIndexI;
         int j = maxIndexJ;
         String targetMaxRegionReversed = "";
@@ -108,18 +99,12 @@ public class SmithWatermanOriginal {
             targetMaxRegion += targetMaxRegionReversed.charAt(i);
             queryMaxRegion += queryMaxRegionReversed.charAt(i);
             i--;
-        }
+        }*/
 
-        System.out.println(
-                "Target Sequence Maximum-Scored Region: " + targetMaxRegion
-                + "\n"
-                + "Query Sequence Maximum-Scored Region: " + queryMaxRegion
-                + "\n"
-                + "Maximum Score: " + recordMax);
 
         long endTime = System.currentTimeMillis();
-        long elapsedTime = endTime - startTime;
-        System.out.println("Elapsed time: " + elapsedTime + " milliseconds");
+        return endTime - startTime;
     }
+
 
 }
