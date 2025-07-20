@@ -1,10 +1,5 @@
 package uk.ac.ebi.uniprot.dataservice.client.examples;
 
-import uk.ac.ebi.uniprot.dataservice.client.Client;
-import uk.ac.ebi.uniprot.dataservice.client.ServiceFactory;
-import uk.ac.ebi.uniprot.dataservice.client.exception.ServiceException;
-import uk.ac.ebi.uniprot.dataservice.client.uniprot.UniProtService;
-
 //CREDIT: https://github.com/JayakrishnaThota/Sequence-Alignment/blob/master/SmithWaterman.java
 
 

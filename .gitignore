@@ -1,9 +1,4 @@
 .idea/
-UniProtExample.iml
-runExample.bat
-runExample.sh
-javadoc/
-out/
 src/BlastDemo.java
 src/PrintUtils.java
 src/UniProtRetrievalExamples.java

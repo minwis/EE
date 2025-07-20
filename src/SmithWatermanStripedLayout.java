@@ -1,10 +1,6 @@
 package uk.ac.ebi.uniprot.dataservice.client.examples;
 
 import jdk.incubator.vector.*;
-import uk.ac.ebi.uniprot.dataservice.client.Client;
-import uk.ac.ebi.uniprot.dataservice.client.ServiceFactory;
-import uk.ac.ebi.uniprot.dataservice.client.exception.ServiceException;
-import uk.ac.ebi.uniprot.dataservice.client.uniprot.UniProtService;
 
 import java.util.Arrays;
 
@@ -139,7 +135,6 @@ public class SmithWatermanStripedLayout {
             }
         }
         long endTime = System.currentTimeMillis();
-        System.out.println(endTime-startTime);
         return (long) endTime - startTime;
     }
 
