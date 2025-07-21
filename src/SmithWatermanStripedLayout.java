@@ -17,10 +17,17 @@ public class SmithWatermanStripedLayout {
         segN = (int) Math.ceil((double) (lenQ + segLen - 1) / segLen);
 
         int paddedLen = segN * segLen;
-        for ( int i = 0; i < paddedLen - lenQ; i++ ) {
-            Q += " ";
+        float blankResidue = ' ';
+        float[] floatArrayQ = new float[paddedLen];
+        int originalLenQ = Q.length();
+        for (int i = 0; i < originalLenQ; i++) {
+            floatArrayQ[i] = Q.charAt(i);
         }
-        lenQ = paddedLen;
+        for (int i = originalLenQ; i < paddedLen; i++) {
+            floatArrayQ[i] = blankResidue;
+        }
+
+        //lenQ = paddedLen;
 
         float matchScore = 20.0f;
         float unmatchScore = -10.0f;
@@ -41,38 +48,25 @@ public class SmithWatermanStripedLayout {
         FloatVector vMatch = FloatVector.fromArray(SPECIES, vMatch_, 0);
         FloatVector vUnmatch = FloatVector.fromArray(SPECIES, vUnmatch_, 0);
 
-        char[] charArrayQ = Q.toCharArray();
-        float[] floatArrayQ = new float[charArrayQ.length];
-        for ( int i = 0; i < charArrayQ.length; i++ ) {
-            floatArrayQ[i] = (float) charArrayQ[i];
-        }
+        FloatVector[][] vProfile = new FloatVector[lenD][segN];
 
-        float[][] tempProfile = new float[lenD+1][lenQ+1];
-        //initializing match/mismatch profile
-        for ( int i = 1; i < lenD; i++ ) {
+        long debugTimeStamp1 = System.currentTimeMillis();
+
+        for ( int i = 0; i < lenD; i++ ) {
             int residueD = D.charAt(i);
             FloatVector vResidueD = FloatVector.broadcast(SPECIES, residueD);
-
-            for ( int j = 1; j < lenQ; j+=segLen ) { //
-                VectorMask<Float> mask = SPECIES.indexInRange(j, j-1+segLen);
-                FloatVector vResidueQ = FloatVector.fromArray(SPECIES, floatArrayQ, j-1, mask);
+            for ( int j = 0; j < segN; j++ ) {
+                int qSegmentStartIndex = j * segLen;
+                FloatVector vResidueQ = FloatVector.fromArray(SPECIES, floatArrayQ, qSegmentStartIndex);
                 VectorMask<Float> residueComparisonMask = vResidueD.compare(VectorOperators.EQ, vResidueQ);
-                FloatVector profileVector = vUnmatch.blend(vMatch, residueComparisonMask);
-                float[] profileVectorArr = profileVector.toArray();
-                for( int k = 0; k < segLen; k++ ) {
-                    tempProfile[i][k+j] = profileVectorArr[k];
-                }
+                vProfile[i][j] = vUnmatch.blend(vMatch, residueComparisonMask);
             }
 
         }
 
-        float[][] profile = new float[lenD+1][lenQ+1];
-        for ( int i = 0; i < lenD; i++ ) {
-            for ( int j = 0; j < lenQ; j++ ) {
-                profile[i+1][j+1] = tempProfile[i][j];
-            }
+        long debugTimeStamp2 = System.currentTimeMillis();
+        System.out.println("Time taken until before major loop: " + (debugTimeStamp2-debugTimeStamp1));
 
-        }
 
         float[] allZeroes = new float[segN];
 
@@ -87,23 +81,21 @@ public class SmithWatermanStripedLayout {
 
         FloatVector vMax = FloatVector.fromArray(SPECIES, allZeroes, 0);
 
-        for ( int i = 1; i <= lenD; i++ ) {
+        long loopStartTime = System.currentTimeMillis();
+        for ( int i = 0; i < lenD; i++ ) {
 
             FloatVector vF = FloatVector.fromArray(SPECIES, allZeroes,0);
-            FloatVector[] vHStoreLeftShift = new FloatVector[0];
-            if ( i != 0 ) {
-                vHStoreLeftShift = leftShift(vHStore);
-            }
+            FloatVector[] vHStoreLeftShift = leftShift(vHStore);
+
             FloatVector vH = vHStoreLeftShift[0];
 
             FloatVector[] vHTemp = vHLoad;
             vHLoad = vHStore;
             vHStore = vHTemp;
 
-
             for (int j = 0; j < segN; j++) {
 
-                vH = vH.add(profile[i][j]);               // Add score from scoring profile
+                vH = vH.add(vProfile[i][j]);               // Add score from scoring profile
                 vMax = vH.max(vMax);                      // Track global max
 
                 vH = vH.max(vE[j]);                        // Compare with E
@@ -118,28 +110,27 @@ public class SmithWatermanStripedLayout {
                 vH = vHLoad[j];
             }
 
-            // Lazy F loop to propagate corrections vertically
             vF = leftShift(vF); // vF <<= 1
             int j = 0;
-            while (j < segN) {
-                FloatVector vHj = vHStore[j];
-                FloatVector vHnew = vHj.max(vF);
-                vHStore[j] = vHnew;
-                vF = vF.sub(vGapE);
 
-                j++;
-                if (j == segN && vF.compare(VectorOperators.GT, vHj.sub(vGapO)).anyTrue()) {
-                    vF = leftShift(vF);  // vF <<= 1
+            while ( LazyFLoopCondition(vF, vHStore[j].sub(vF)) ) {
+                vHStore[j] = vHStore[j].max(vF);
+                vF = vF.sub(vGapE);
+                if ( ++j >= segN ) {
+                    vF = leftShift(vF);
                     j = 0;
                 }
+                j++;
             }
         }
         long endTime = System.currentTimeMillis();
+        System.out.println("Loop time: " + (endTime-loopStartTime));
         return (long) endTime - startTime;
     }
 
 
     public static FloatVector[] leftShift(FloatVector[] v1) {
+        long start = System.currentTimeMillis();
         int laneCount = SPECIES.length();
         int totalLen = v1.length * laneCount;
 
@@ -156,17 +147,24 @@ public class SmithWatermanStripedLayout {
         for (int i = 0; i < v1.length; i++) {
             result[i] = FloatVector.fromArray(SPECIES, flat, i * laneCount);
         }
+        long end = System.currentTimeMillis();
+        System.out.println("FloatVector[] Left Shift time: " + (end-start));
         return result;
+
     }
 
     public static FloatVector leftShift(FloatVector v1) {
-        float[] flat = new float[v1.length()];
-        v1.intoArray(flat, 0);
+        int[] orderArr = new int[segLen];
+        orderArr[0] = segLen - 1;
+        for ( int i = 1; i < segLen; i++ ) {
+            orderArr[i] = i-1;
+        }
+        VectorShuffle<Float> shuffle = VectorShuffle.fromArray(SPECIES, orderArr, 0);
+        return v1.rearrange(shuffle);
+    }
 
-        float first = flat[0];
-        System.arraycopy(flat, 1, flat, 0, v1.length() - 1);
-        flat[v1.length() - 1] = first;
-
-        return FloatVector.fromArray(SPECIES, flat, 0);
+    public static boolean LazyFLoopCondition(FloatVector v1, FloatVector v2) {
+        VectorMask<Float> compare = v1.compare(VectorOperators.GT, v2);
+        return !compare.allTrue();
     }
 }
