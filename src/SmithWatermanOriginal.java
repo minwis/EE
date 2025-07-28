@@ -20,9 +20,9 @@ public class SmithWatermanOriginal {
         int Emax = 0;
         int Fmax = 0;
         int Hvalue = 0;
-        int[][] path = new int[targetSeqLen + 1][querySeqLen + 1];
+        /*int[][] path = new int[targetSeqLen + 1][querySeqLen + 1];
         int maxIndexI = 0;
-        int maxIndexJ = 0;
+        int maxIndexJ = 0;*/
         int recordMax = -1;
         for ( int i = 1; i <= targetSeqLen; i++ ) {
             for ( int j = 1; j <= querySeqLen; j++ ) {
@@ -39,7 +39,7 @@ public class SmithWatermanOriginal {
                 Emax = Math.max(E[i-1][j] - gapExtensionPenalty, H[i-1][j] - gapOpeningPenalty);
                 E[i][j] = Emax;
 
-                int currentMax = Math.max(Hvalue, Math.max(Math.max(Fmax, Emax),0));
+                int currentMax = Math.max(Hvalue, Math.max(Math.max(Emax, Fmax),0));
                 if ( currentMax > 0 ) {
                     H[i][j] = currentMax;
                 }
@@ -50,6 +50,7 @@ public class SmithWatermanOriginal {
                     recordMax = currentMax;
                 }
 
+                /*
                 if ( H[i][j] == Hvalue ) {
                     path[i][j] = 1;
                 }
@@ -58,7 +59,7 @@ public class SmithWatermanOriginal {
                 }
                 else if (H[i][j] == Emax) {
                     path[i][j] = 3;
-                }
+                }*/
 
             }
         }
@@ -96,6 +97,7 @@ public class SmithWatermanOriginal {
             i--;
         }*/
 
+        System.out.println(recordMax);
 
         long endTime = System.currentTimeMillis();
         return endTime - startTime;

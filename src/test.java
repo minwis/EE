@@ -1,41 +1,74 @@
-package uk.ac.ebi.uniprot.dataservice.client.examples;//package uk.ac.ebi.uniprot.dataservice.client.examples;
+package uk.ac.ebi.uniprot.dataservice.client.examples;
 
-import jdk.incubator.vector.*;
+import uk.ac.ebi.kraken.interfaces.uniprot.UniProtEntry;
+import uk.ac.ebi.kraken.interfaces.uniprot.comments.AlternativeProductsComment;
+import uk.ac.ebi.kraken.interfaces.uniprot.comments.AlternativeProductsIsoform;
+import uk.ac.ebi.kraken.interfaces.uniprot.comments.Comment;
+import uk.ac.ebi.kraken.interfaces.uniprot.comments.CommentType;
+import uk.ac.ebi.uniprot.dataservice.client.Client;
+import uk.ac.ebi.uniprot.dataservice.client.QueryResult;
+import uk.ac.ebi.uniprot.dataservice.client.ServiceFactory;
+import uk.ac.ebi.uniprot.dataservice.client.exception.ServiceException;
+import uk.ac.ebi.uniprot.dataservice.client.uniprot.UniProtQueryBuilder;
+import uk.ac.ebi.uniprot.dataservice.client.uniprot.UniProtService;
+import uk.ac.ebi.uniprot.dataservice.query.Query;
 
-//in Terminal, type: java --add-modules jdk.incubator.vector test.java
+import java.util.List;
 
-import java.util.Arrays;
+import static uk.ac.ebi.uniprot.dataservice.client.examples.SmithWatermanOriginal.Original;
+import static uk.ac.ebi.uniprot.dataservice.client.examples.SmithWatermanStripedLayout.StripedLayout;
 
 public class test {
 
-    static final VectorSpecies<Integer> SPECIES = IntVector.SPECIES_256;
-    static final VectorSpecies<Float> SPECIES2 = FloatVector.SPECIES_64;
+    public static void main(String[] args) throws ServiceException {
 
-    public static void main(String[] args) {
+        ServiceFactory serviceFactoryInstance = Client.getServiceFactoryInstance();
+        UniProtService uniProtService = serviceFactoryInstance.getUniProtQueryService();
 
-        int[] a = new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        String targetProteinName = "P10415"; //A0A1B0GTW7
+        String D = uniProtService.getEntry(targetProteinName).getSequence().getValue();
+        int lenD = D.length();
+        String querySequenceName = "P49950"; //A0A1L8HYT7
+        String Q = uniProtService.getEntry(querySequenceName).getSequence().getValue();
+        int lenQ = Q.length();
 
-        int[] b = new int[] {10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
-        int[] c = new int[a.length];
+        System.out.println("Stripped Layout: " + StripedLayout(D, lenD, Q, lenQ) + "\nOriginal: " + Original(D, lenD, Q, lenQ));
 
-        for( int i = 0; i < a.length; i+=SPECIES.length() ) {
-            var mask = SPECIES.indexInRange(i, a.length);
-            var va = IntVector.fromArray(SPECIES, a, i, mask);
-            var vb = IntVector.fromArray(SPECIES, b, i, mask);
-            var vc = va.add(vb, mask);
-            vc.intoArray(c, i, mask);
+        /*
+        Query query = UniProtQueryBuilder.proteinName("Titin");
+        QueryResult<UniProtEntry> entries = uniProtService.getEntries(query);
+
+        String canonicalSequence;
+        String isoformSequence;
+        for ( int i = 0; i < 1000; i++ )  { //(entries.hasNext())
+
+            UniProtEntry entry = entries.next();
+            canonicalSequence = uniProtService.getEntry(entry.getPrimaryUniProtAccession().getValue()).getSequence().getValue();
+
+            AlternativeProductsComment altProdComment = null;
+            for (Comment comment : entry.getComments()) {
+                if (comment.getCommentType() == CommentType.ALTERNATIVE_PRODUCTS) {
+                    altProdComment = (AlternativeProductsComment) comment;
+                    break;
+                }
+            }
+
+
+
+            if ( altProdComment != null ) {
+                List<AlternativeProductsIsoform> isoforms = altProdComment.getIsoforms();
+                System.out.println(isoforms.toArray().length);
+                if ( !isoforms.isEmpty() ) {
+                    for ( int j = 0; j < isoforms.toArray().length; j++ ) {
+                        isoformSequence = uniProtService.getEntry(isoforms.get(i).getIds().getFirst().getValue()).getSequence().getValue();
+                    }
+                }
+            }
+
+
+
+        }*/
 
         }
-
-        IntVector vc = IntVector.fromArray(SPECIES, c, 0);
-
-        System.out.println(vc);
-        System.out.println(vc.lanewise(VectorOperators.LSHL, 2));
-
-
-        String s = "hello world";
-        int n = 'h';
-        System.out.println(s.charAt(0) == n);
-    }
 
 }
