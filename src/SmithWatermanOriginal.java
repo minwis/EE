@@ -6,24 +6,24 @@ package uk.ac.ebi.uniprot.dataservice.client.examples;
 public class SmithWatermanOriginal {
 
     public static long Original(String targetSequence, int targetSeqLen, String querySequence, int querySeqLen) {
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();
 
-        int[][] H = new int[targetSeqLen+1][querySeqLen+1];
-        int[][] E = new int[targetSeqLen+1][querySeqLen+1];
-        int[][] F = new int[targetSeqLen+1][querySeqLen+1];
+        float[][] H = new float[targetSeqLen+1][querySeqLen+1];
+        float[][] E = new float[targetSeqLen+1][querySeqLen+1];
+        float[][] F = new float[targetSeqLen+1][querySeqLen+1];
 
-        int matchScore = 20;
-        int mismatchScore = 10;
-        int gapOpeningPenalty = 10;
-        int gapExtensionPenalty = 3;
+        float matchScore = 20.0f;
+        float mismatchScore = 10.0f;
+        float gapOpeningPenalty = 10.0f;
+        float gapExtensionPenalty = 3.0f;
 
-        int Emax = 0;
-        int Fmax = 0;
-        int Hvalue = 0;
+        float Emax = 0;
+        float Fmax = 0;
+        float Hvalue = 0;
         /*int[][] path = new int[targetSeqLen + 1][querySeqLen + 1];
         int maxIndexI = 0;
         int maxIndexJ = 0;*/
-        int recordMax = -1;
+        float recordMax = -1.0f;
         for ( int i = 1; i <= targetSeqLen; i++ ) {
             for ( int j = 1; j <= querySeqLen; j++ ) {
                 if ( targetSequence.charAt(i-1) == querySequence.charAt(j-1) ) {
@@ -39,7 +39,12 @@ public class SmithWatermanOriginal {
                 Emax = Math.max(E[i-1][j] - gapExtensionPenalty, H[i-1][j] - gapOpeningPenalty);
                 E[i][j] = Emax;
 
-                int currentMax = Math.max(Hvalue, Math.max(Math.max(Emax, Fmax),0));
+                float currentMax = Hvalue;
+
+                if (Emax > currentMax) currentMax = Emax;
+                if (Fmax > currentMax) currentMax = Fmax;
+                if (currentMax < 0) currentMax = 0;
+
                 if ( currentMax > 0 ) {
                     H[i][j] = currentMax;
                 }
@@ -99,7 +104,7 @@ public class SmithWatermanOriginal {
 
         System.out.println(recordMax);
 
-        long endTime = System.currentTimeMillis();
+        long endTime = System.nanoTime();
         return endTime - startTime;
     }
 

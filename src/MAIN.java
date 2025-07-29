@@ -30,13 +30,17 @@ public class MAIN {
         ServiceFactory serviceFactoryInstance = Client.getServiceFactoryInstance();
         UniProtService uniProtService = serviceFactoryInstance.getUniProtQueryService();
 
-        //String targetProteinName = "P10415"; //A0A1B0GTW7
-        //String D = uniProtService.getEntry(targetProteinName).getSequence().getValue();
-        String D = "MRWQEMGYIFYPRKLR";
+        /*
+        String targetProteinName = "P10415"; //A0A1B0GTW7
+        String D = uniProtService.getEntry(targetProteinName).getSequence().getValue();
+        String querySequenceName = "P49950"; //A0A1L8HYT7
+        String Q = uniProtService.getEntry(querySequenceName).getSequence().getValue();
+        */
+        ///*
+        String D = "AGC";
+        String Q = "ACG";
+        //*/
         int lenD = D.length();
-        //String querySequenceName = "P49950"; //A0A1L8HYT7
-        //String Q = uniProtService.getEntry(querySequenceName).getSequence().getValue();
-        String Q = "MRAKWRKKRMRRLKRKRRKMRQRSK";
         int lenQ = Q.length();
 
         System.out.println("Stripped Layout: " + StripedLayout(D, lenD, Q, lenQ) + "\nOriginal: " + Original(D, lenD, Q, lenQ));

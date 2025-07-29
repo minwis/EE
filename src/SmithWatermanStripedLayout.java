@@ -12,25 +12,21 @@ public class SmithWatermanStripedLayout {
     static int segN;
 
     public static long StripedLayout( String D, int lenD, String Q, int lenQ ) {
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();
 
-        segN = (int) Math.ceil((double) (lenQ + segLen - 1) / segLen);
+        segN = (lenQ + segLen - 1) / segLen; //(3+8-1)/8 = 10/8 = 1
 
         int paddedLen = segN * segLen;
-        float blankResidue = ' ';
         float[] floatArrayQ = new float[paddedLen];
         int originalLenQ = Q.length();
         for (int i = 0; i < originalLenQ; i++) {
             floatArrayQ[i] = Q.charAt(i);
         }
-        for (int i = originalLenQ; i < paddedLen; i++) {
-            floatArrayQ[i] = blankResidue;
-        }
 
         float matchScore = 20.0f;
-        float unmatchScore = -10.0f;
-        float gapOpeningPenalty = -10.0f;
-        float gapExtensionPenalty = -3.0f;
+        float unmatchScore = 10.0f;
+        float gapOpeningPenalty = 10.0f;
+        float gapExtensionPenalty = 3.0f;
 
         float[] vMatch_ = new float[segLen];
         Arrays.fill(vMatch_, matchScore);
@@ -53,7 +49,8 @@ public class SmithWatermanStripedLayout {
             for ( int j = 0; j < segN; j++ ) {
                 int qSegmentStartIndex = j * segLen;
                 FloatVector vResidueQ = FloatVector.fromArray(SPECIES, floatArrayQ, qSegmentStartIndex);
-                VectorMask<Float> residueComparisonMask = vResidueD.compare(VectorOperators.EQ, vResidueQ);
+                VectorMask<Float> withinRange = SPECIES.indexInRange(qSegmentStartIndex+segLen, lenQ);
+                VectorMask<Float> residueComparisonMask = vResidueD.compare(VectorOperators.EQ, vResidueQ, withinRange);
                 vProfile[i][j] = vUnmatch.blend(vMatch, residueComparisonMask);
             }
 
@@ -65,7 +62,7 @@ public class SmithWatermanStripedLayout {
         FloatVector[] vHLoad = new FloatVector[segN];
         FloatVector[] vE = new FloatVector[segN];
         FloatVector vMax;
-                FloatVector vF, vH, vESubvGapE, vFSubvGapE;
+        FloatVector vF, vH, vESubvGapE, vFSubvGapE;
         FloatVector[] vHTemp;
 
         for ( int i = 0; i < segN; i++ ) {
@@ -75,6 +72,10 @@ public class SmithWatermanStripedLayout {
         }
 
         vMax = FloatVector.fromArray(SPECIES, allZeroes, 0);
+
+
+
+        //TODO: MAIN LOOP
         for ( int i = 0; i < lenD; i++ ) {
 
             vF = FloatVector.fromArray(SPECIES, allZeroes,0);
@@ -98,6 +99,7 @@ public class SmithWatermanStripedLayout {
                 // Calculate vE and vF for next iteration
                 vESubvGapE = vE[j].sub(vGapE);
                 vE[j] = vESubvGapE.max((vH.sub(vGapO).max(0)));
+
                 vFSubvGapE = vF.sub(vGapE);
                 vF = vFSubvGapE.max((vH.sub(vGapO).max(0)));
 
@@ -108,19 +110,18 @@ public class SmithWatermanStripedLayout {
             vF = leftShift(vF);
             int j = 0;
 
-            while ( LazyFLoopCondition(vF, vHStore[j].sub(vF)) ) {
+            while ( ++j < segN && LazyFLoopCondition(vF, vHStore[j].sub(vGapO)) ) {
                 vHStore[j] = vHStore[j].max(vF);
                 vF = vF.sub(vGapE);
-                if ( ++j >= segN ) {
+                /*if ( ++j >= segN ) {
                     vF = leftShift(vF);
                     j = 0;
-                }
-                j++;
+                }*/
             }
         }
 
-        long endTime = System.currentTimeMillis();
-        System.out.println(vMax.lane(0));
+        long endTime = System.nanoTime();
+        System.out.println(vMax.reduceLanes(VectorOperators.MAX));
         //System.out.println("FloatVector[] Left Shift time: " + maxTime);
         return (long) endTime - startTime;
     }
@@ -128,49 +129,24 @@ public class SmithWatermanStripedLayout {
     public static long maxTime = 0;
 
     public static FloatVector[] leftShift(FloatVector[] v1) {
-        long start = System.currentTimeMillis();
 
         int laneCount = SPECIES.length();
-        int vecLen = v1.length;
-        FloatVector[] result = new FloatVector[vecLen];
+        int totalLen = v1.length * laneCount;
 
-        int[] shuffleIndexes = new int[laneCount];
+        float[] flat = new float[totalLen];
 
-        float[] carryArr = new float[laneCount];
-        VectorMask<Float> lastLaneMask = VectorMask.fromLong(SPECIES, 1L << (laneCount - 1));
-
-        for (int i = 0; i < laneCount - 1; i++) {
-            shuffleIndexes[i] = i + 1;
-        }
-        shuffleIndexes[laneCount - 1] = 0;
-        VectorShuffle<Float> laneShuffle = VectorShuffle.fromArray(SPECIES, shuffleIndexes, 0);
-
-        // Carry-over value for rotation between vectors
-        float carry = v1[0].lane(0); // first element becomes the last
-
-        for (int i = 0; i < vecLen; i++) {
-            FloatVector vec = v1[i];
-            FloatVector shuffled = vec.rearrange(laneShuffle);
-
-            // Bring carry from previous vector into last lane
-            carryArr[laneCount - 1] = carry;
-            FloatVector carryVec = FloatVector.fromArray(SPECIES, carryArr, 0);
-            shuffled = shuffled.blend(carryVec, lastLaneMask);
-
-            // Update carry for next vector (it’s the old lane 0)
-            carry = vec.lane(0);
-
-            result[i] = shuffled;
+        for (int i = 0; i * laneCount < v1.length; i++) {
+            v1[i].intoArray(flat, i * laneCount);
         }
 
-        // Put original first value into last vector’s last lane (full rotate)
-        result[vecLen - 1] = result[vecLen - 1].withLane(laneCount - 1, carry);
+        float first = flat[0];
+        System.arraycopy(flat, 1, flat, 0, totalLen - 1);
+        flat[totalLen - 1] = first;
 
-        long end = System.currentTimeMillis();
-        if (end - start > maxTime) {
-            maxTime = end - start;
+        FloatVector[] result = new FloatVector[v1.length];
+        for (int i = 0; i < v1.length; i++) {
+            result[i] = FloatVector.fromArray(SPECIES, flat, i * laneCount);
         }
-
 
         return result;
 
