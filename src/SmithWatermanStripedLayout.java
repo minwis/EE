@@ -31,11 +31,11 @@ public class SmithWatermanStripedLayout {
         float[] vMatch_ = new float[segLen];
         Arrays.fill(vMatch_, matchScore);
         float[] vUnmatch_ = new float[segLen];
-        Arrays.fill(vUnmatch_, unmatchScore);
+        Arrays.fill(vUnmatch_, -unmatchScore);
         float[] vGapOpen_ = new float[segLen];
-        Arrays.fill(vGapOpen_, gapOpeningPenalty);
+        Arrays.fill(vGapOpen_, -gapOpeningPenalty);
         float[] vGapExtend_ = new float[segLen];
-        Arrays.fill(vGapExtend_, gapExtensionPenalty);
+        Arrays.fill(vGapExtend_, -gapExtensionPenalty);
 
         FloatVector vGapO = FloatVector.fromArray(SPECIES, vGapOpen_, 0);
         FloatVector vGapE = FloatVector.fromArray(SPECIES, vGapExtend_, 0);
@@ -49,9 +49,11 @@ public class SmithWatermanStripedLayout {
             for ( int j = 0; j < segN; j++ ) {
                 int qSegmentStartIndex = j * segLen;
                 FloatVector vResidueQ = FloatVector.fromArray(SPECIES, floatArrayQ, qSegmentStartIndex);
-                VectorMask<Float> withinRange = SPECIES.indexInRange(qSegmentStartIndex+segLen, lenQ);
+                VectorMask<Float> withinRange = SPECIES.indexInRange(qSegmentStartIndex, lenQ);
                 VectorMask<Float> residueComparisonMask = vResidueD.compare(VectorOperators.EQ, vResidueQ, withinRange);
                 vProfile[i][j] = vUnmatch.blend(vMatch, residueComparisonMask);
+
+                //만약 벡터의 인텍스가 qLen을 넘어가면 --> 0으로 처리
             }
 
         }
@@ -89,7 +91,10 @@ public class SmithWatermanStripedLayout {
 
             for (int j = 0; j < segN; j++) {
 
-                vH = vH.add(vProfile[i][j]); // Add score from scoring profile
+                VectorMask<Float> withinRange = SPECIES.indexInRange(j*segLen, lenQ);
+                vH = vH.add(vProfile[i][j], withinRange); // Add score from scoring profile
+
+
                 vMax = vH.max(vMax); // Track global max
 
                 vH = vH.max(vE[j]); // Compare with E
@@ -97,10 +102,10 @@ public class SmithWatermanStripedLayout {
                 vHStore[j] = vH; // Store updated H
 
                 // Calculate vE and vF for next iteration
-                vESubvGapE = vE[j].sub(vGapE);
-                vE[j] = vESubvGapE.max((vH.sub(vGapO).max(0)));
+                vESubvGapE = vE[j].sub(vGapE, withinRange);
+                vE[j] = vESubvGapE.max((vH.sub(vGapO, withinRange).max(0)));
 
-                vFSubvGapE = vF.sub(vGapE);
+                vFSubvGapE = vF.sub(vGapE, withinRange);
                 vF = vFSubvGapE.max((vH.sub(vGapO).max(0)));
 
                 // Load next vH
@@ -111,8 +116,9 @@ public class SmithWatermanStripedLayout {
             int j = 0;
 
             while ( ++j < segN && LazyFLoopCondition(vF, vHStore[j].sub(vGapO)) ) {
+                VectorMask<Float> withinRange = SPECIES.indexInRange(j*segLen, lenQ);
                 vHStore[j] = vHStore[j].max(vF);
-                vF = vF.sub(vGapE);
+                vF = vF.sub(vGapE, withinRange);
                 /*if ( ++j >= segN ) {
                     vF = leftShift(vF);
                     j = 0;
