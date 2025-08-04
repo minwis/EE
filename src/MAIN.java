@@ -1,19 +1,13 @@
 package uk.ac.ebi.uniprot.dataservice.client.examples;
 
 import uk.ac.ebi.kraken.interfaces.uniprot.UniProtEntry;
-import uk.ac.ebi.kraken.interfaces.uniprot.comments.AlternativeProductsComment;
-import uk.ac.ebi.kraken.interfaces.uniprot.comments.AlternativeProductsIsoform;
-import uk.ac.ebi.kraken.interfaces.uniprot.comments.Comment;
-import uk.ac.ebi.kraken.interfaces.uniprot.comments.CommentType;
-import uk.ac.ebi.uniprot.dataservice.client.Client;
-import uk.ac.ebi.uniprot.dataservice.client.QueryResult;
-import uk.ac.ebi.uniprot.dataservice.client.ServiceFactory;
+import uk.ac.ebi.kraken.model.factories.DefaultUniProtFactory;
+import uk.ac.ebi.kraken.parser.UniProtParser;
 import uk.ac.ebi.uniprot.dataservice.client.exception.ServiceException;
-import uk.ac.ebi.uniprot.dataservice.client.uniprot.UniProtQueryBuilder;
-import uk.ac.ebi.uniprot.dataservice.client.uniprot.UniProtService;
-import uk.ac.ebi.uniprot.dataservice.query.Query;
 
-import java.util.List;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 
 import static uk.ac.ebi.uniprot.dataservice.client.examples.SmithWatermanOriginal.Original;
 import static uk.ac.ebi.uniprot.dataservice.client.examples.SmithWatermanStripedLayout.StripedLayout;
@@ -21,29 +15,46 @@ import static uk.ac.ebi.uniprot.dataservice.client.examples.SmithWatermanStriped
 
 public class MAIN {
 
+    // load from file (***)
+    public static String getSequenceFromFile(String filename) {
+        File f = new File(filename);
+        System.out.println("Input Absolute path: " + f.getAbsolutePath());
+        System.out.println("File size in bytes: " + f.length());
+        try (FileInputStream fis = new FileInputStream(f)) {
+            UniProtEntry eD = UniProtParser.parse(fis, DefaultUniProtFactory.getInstance(), true);
+            return eD.getSequence().getValue();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
 
     public static void main(String[] args) throws ServiceException {
 
         long timeForStripped = 0;
         long timeForOriginal = 0;
-
+/*
         ServiceFactory serviceFactoryInstance = Client.getServiceFactoryInstance();
         UniProtService uniProtService = serviceFactoryInstance.getUniProtQueryService();
 
-        ///*
-        String targetProteinName = "P10415"; //A0A1B0GTW7
+       String targetProteinName = "P10415"; //A0A1B0GTW7
         String D = uniProtService.getEntry(targetProteinName).getSequence().getValue();
         String querySequenceName = "P49950"; //A0A1L8HYT7
         String Q = uniProtService.getEntry(querySequenceName).getSequence().getValue();
-        //*/
-        /*
-        String D = "AGC";
-        String Q = "ACG";
-        */
+*/
+        // load from file (***)
+        //String D = getSequenceFromFile("P10415.txt");
+        //String Q = getSequenceFromFile("P49950.txt");
+
+
+        String D = "TGTTACGG";
+        String Q = "GGTTGACTA";
+
         int lenD = D.length();
         int lenQ = Q.length();
 
-        System.out.println("Stripped Layout: " + StripedLayout(D, lenD, Q, lenQ) + "\nOriginal: " + Original(D, lenD, Q, lenQ));
+        System.out.println("Original Time(ns): " + Original(D, lenD, Q, lenQ));
+        System.out.println("Stripped-Layout Time(ns): " + StripedLayout(D, lenD, Q, lenQ));
 
         /*
         String targetProteinName = "Q8WZ42-1";
