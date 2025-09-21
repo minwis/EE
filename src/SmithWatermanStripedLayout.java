@@ -61,79 +61,97 @@ public class SmithWatermanStripedLayout {
                 VectorMask<Float> residueComparisonMask = vResidueD.compare(VectorOperators.EQ, vResidueQ);
                 VectorMask<Float> withinRange = SPECIES.indexInRange(0, (lenQ-j + segN-1)/segN);
                 vProfile[i][j] = FloatVector.fromArray(SPECIES, allZeroes,0).blend((vUnmatch.blend(vMatch, residueComparisonMask)), withinRange);
-
             }
-
         }
 
-
-
+        FloatVector[][] vHResult = new FloatVector[lenD][segN];
         FloatVector[] vHStore = new FloatVector[segN];
         FloatVector[] vHLoad = new FloatVector[segN];
         FloatVector[] vE = new FloatVector[segN];
         FloatVector vMax;
-        FloatVector vF, vH, vESubvGapE, vFSubvGapE;
-        FloatVector[] vHTemp;
+        FloatVector vF, vH, vZero;
+        VectorMask<Float> withinRange;
 
         for ( int i = 0; i < segN; i++ ) {
-            vHStore[i] = FloatVector.fromArray(SPECIES, allZeroes,0);
-            vHLoad[i] = FloatVector.fromArray(SPECIES, allZeroes,0);
-            vE[i] = FloatVector.fromArray(SPECIES, allZeroes,0);
+            vHStore[i] = FloatVector.fromArray(SPECIES, allZeroes, 0);
+            vHLoad[i] = FloatVector.fromArray(SPECIES, allZeroes, 0);
+            vE[i] = FloatVector.fromArray(SPECIES, vGapExtend_,0);
         }
-
+        vZero = FloatVector.fromArray(SPECIES, allZeroes, 0);
         vMax = FloatVector.fromArray(SPECIES, allZeroes, 0);
 
-
-
-        //TODO: MAIN LOOP
+        // Outer loop to process the database sequence
+        // for i:=0...dbLen
         for ( int i = 0; i < lenD; i++ ) {
-
+            // Initialize F value to zeros. Any errors to vH values will be corrected in the Lazy-F loop.
             vF = FloatVector.fromArray(SPECIES, allZeroes,0);
-            FloatVector[] vHStoreLeftShift = leftShift(vHStore);
 
-            vH = vHStoreLeftShift[0];
+            // Adjust the last H value to be used in the next segment over
+            withinRange = SPECIES.indexInRange(1, (lenQ-0 + segN-1)/segN );
+            vH = vHStore[segN - 1].unslice(1, vZero, 0, withinRange);
 
-            vHTemp = vHLoad;
+            // Swap the two H buffers - change to store all
             vHLoad = vHStore;
-            vHStore = vHTemp;
+            vHStore = vHResult[i];
 
+            // Inner loop to process the query sequence
             for (int j = 0; j < segN; j++) {
-
-                VectorMask<Float> withinRange = SPECIES.indexInRange(j*segLen, lenQ);
+                // Add the scoring profile to vH
+                withinRange = SPECIES.indexInRange(0, (lenQ-j + segN-1)/segN );
                 vH = vH.add(vProfile[i][j], withinRange); // Add score from scoring profile
 
+                // Save the vH values greater than the max
+                vMax = vMax.max(vH);
 
-                vMax = vH.max(vMax);
-
+                // Adjust vH with any greater vE or vH values
                 vH = vH.max(vE[j]);
                 vH = vH.max(vF);
-                vHStore[j] = vH;
 
+                // Save the vH values off
+                vHStore[j] = vH.max(vZero); // compare 0 and copy
 
-                vESubvGapE = vE[j].sub(vGapE, withinRange);
-                vE[j] = vESubvGapE.max((vH.sub(vGapO, withinRange).max(0)));
-
-                vFSubvGapE = vF.sub(vGapE, withinRange);
-                vF = vFSubvGapE.max((vH.sub(vGapO).max(0)));
+                // Calculate the new vE and vF based on the gap penalties for this search
+                vH = vH.add(vGapO, withinRange);
+                vE[j] = vE[j].add(vGapE, withinRange);
+                vE[j] = vE[j].max(vH);
+                vF = vF.add(vGapE, withinRange);
+                vF = vF.max(vH);
 
                 // Load next vH
                 vH = vHLoad[j];
             }
 
-            vF = leftShift(vF);
+            // --- Lazy-F loop ---
+            // Shift the vF left so its values can be used to correct the next segment over
+            // probably wrong in paper vF := VF >> 1;
+            withinRange = SPECIES.indexInRange(1, (lenQ-0 + segN-1)/segN );
+            vF = vF.unslice(1, vZero, 0, withinRange);
+
+            // Correct the vH values until there are no elements in vF that could influence the vH values
             int j = 0;
-
-            while ( ++j < segN && LazyFLoopCondition(vF, vHStore[j].sub(vGapO)) ) {
-                VectorMask<Float> withinRange = SPECIES.indexInRange(j*segLen, lenQ);
+            withinRange = SPECIES.indexInRange(0, (lenQ-j + segN-1)/segN );
+            VectorMask<Float> vCompare = vF.compare(VectorOperators.GT, vHStore[j], withinRange);
+            while(vCompare.anyTrue()) {
                 vHStore[j] = vHStore[j].max(vF);
-                vF = vF.sub(vGapE, withinRange);
-            }
+                vMax = vMax.max(vHStore[j]); // probably missed in paper
+                vH = vHStore[j].add(vGapO, withinRange);
+                vE[j] = vE[j].max(vH); // probably missed in paper
+                vF = vF.add(vGapE, withinRange);
+                vF = vF.max(vH); // probably missed in paper
+                if (++j >= segN) {
+                    // If we processed the entire segment, we need to carry the vF values to the next segment
+                    withinRange = SPECIES.indexInRange(1, (lenQ-0 + segN-1)/segN );
+                    vF = vF.unslice(1, vZero, 0, withinRange);
+                    j = 0;
+                }
 
-            vMax = vH.max(vMax);
+                withinRange = SPECIES.indexInRange(0, (lenQ-j + segN-1)/segN );
+                vCompare = vF.compare(VectorOperators.GT, vHStore[j], withinRange);
+            }
         }
 
         long endTime = System.nanoTime();
-        System.out.println(vMax.reduceLanes(VectorOperators.MAX));
+        System.out.println("Stripped-Layout max " + vMax.reduceLanes(VectorOperators.MAX));
         //System.out.println("FloatVector[] Left Shift time: " + maxTime);
         return (long) endTime - startTime;
     }

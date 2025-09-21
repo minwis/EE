@@ -46,12 +46,12 @@ public class MAIN {
         //String D = getSequenceFromFile("P10415.txt");
         //String Q = getSequenceFromFile("P49950.txt");
 
-
         String D = "TGTTACGG";
         String Q = "GGTTGACTA";
 
         int lenD = D.length();
         int lenQ = Q.length();
+        System.out.println("Size: " + lenD * lenQ + ", D : " + lenD + ", Q : " + lenQ);
 
         System.out.println("Original Time(ns): " + Original(D, lenD, Q, lenQ));
         System.out.println("Stripped-Layout Time(ns): " + StripedLayout(D, lenD, Q, lenQ));
