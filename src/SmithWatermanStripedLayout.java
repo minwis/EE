@@ -155,45 +155,4 @@ public class SmithWatermanStripedLayout {
         //System.out.println("FloatVector[] Left Shift time: " + maxTime);
         return (long) endTime - startTime;
     }
-
-    public static long maxTime = 0;
-
-    public static FloatVector[] leftShift(FloatVector[] v1) {
-
-        int laneCount = SPECIES.length();
-        int totalLen = v1.length * laneCount;
-
-        float[] flat = new float[totalLen];
-
-        for (int i = 0; i * laneCount < v1.length; i++) {
-            v1[i].intoArray(flat, i * laneCount);
-        }
-
-        float first = flat[0];
-        System.arraycopy(flat, 1, flat, 0, totalLen - 1);
-        flat[totalLen - 1] = first;
-
-        FloatVector[] result = new FloatVector[v1.length];
-        for (int i = 0; i < v1.length; i++) {
-            result[i] = FloatVector.fromArray(SPECIES, flat, i * laneCount);
-        }
-
-        return result;
-
-    }
-
-    public static FloatVector leftShift(FloatVector v1) {
-        int[] orderArr = new int[segLen];
-        orderArr[0] = segLen - 1;
-        for ( int i = 1; i < segLen; i++ ) {
-            orderArr[i] = i-1;
-        }
-        VectorShuffle<Float> shuffle = VectorShuffle.fromArray(SPECIES, orderArr, 0);
-        return v1.rearrange(shuffle);
-    }
-
-    public static boolean LazyFLoopCondition(FloatVector v1, FloatVector v2) {
-        VectorMask<Float> compare = v1.compare(VectorOperators.GT, v2);
-        return !compare.allTrue();
-    }
 }
